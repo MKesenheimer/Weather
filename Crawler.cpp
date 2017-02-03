@@ -112,7 +112,7 @@ int main(int argc, const char * argv[]) {
         datafile << std::endl;
         
         int wait = (int)60*60*24/CALLSPERDAY;
-        sleep(10);
+        sleep(wait);
     }
     
     datafile.close();
