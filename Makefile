@@ -68,7 +68,7 @@ Weather: $(BUILD1)
 	  $(CXX) $(patsubst %,build/%,$(BUILD1)) $(LDFLAGS) $(LIB) $(FRM) -o $@
 
 Crawler: $(BUILD2)
-	  $(CXX) $(patsubst %,build/%,$(BUILD2)) $(LDFLAGS) $(LIB) $(FRM) -o $@
+	  $(CXX) $(patsubst %,build/%,$(BUILD2)) $(LDFLAGS) -lcurl $(FRM) -o $@
 
 libopennn.a: 
 	cd $(OPENNN) && mkdir -p build
