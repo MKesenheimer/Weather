@@ -1,10 +1,13 @@
 #ifndef Functions_H
 #define Functions_H
 
+#include <stdio.h>
+#include <string.h>
 #include <iostream>
 #include <vector>
 #include <limits> 
 #include <sstream>
+#include <algorithm>
 
 void strToChar(const std::string tmp, char (&chars)[1024]);
 bool is_number(const std::string& s);
