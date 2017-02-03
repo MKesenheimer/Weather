@@ -1,5 +1,6 @@
 #include <curl/curl.h>
 #include <sstream>
+#include <stdexcept>
 
 #ifndef CURL_H
 #define CURL_H
