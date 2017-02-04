@@ -2,6 +2,7 @@
 
 //copied and modified from 
 //http://stackoverflow.com/questions/1011339/how-do-you-make-a-http-request-with-c
+// apt-get install libcurl4-gnutls-dev
 
 CURLplusplus::CURLplusplus() : curl(curl_easy_init()), http_code(0) {}
    

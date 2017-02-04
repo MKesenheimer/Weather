@@ -1,5 +1,6 @@
 // install curl on your system before using this program:
 // sudo port install curl
+// apt-get install libcurl4-gnutls-dev
 
 #include <iostream>
 #include <fstream>

@@ -39,6 +39,8 @@ class JData {
 
   private:
     rapidjson::Document document;
+    std::string stored;
+    bool isValidDataSet;
 };
 
 #endif

@@ -1,5 +1,6 @@
 // install curl on your system before using this program:
 // sudo port install curl
+// apt-get install libcurl4-gnutls-dev
 
 #include <iostream>
 #include <fstream>
@@ -14,7 +15,7 @@
 
 //TODO move to weather.config
 //get weather data x times per day
-#define CALLSPERDAY 24
+#define CALLSPERDAY 48
 //extend data file with current data
 #define EXT true
 //number of observables
@@ -70,6 +71,11 @@ int main(int argc, const char * argv[]) {
     
         std::cout << "Number of requested cities: " << ncities << std::endl << std::endl;
         
+        //store all data in one huge vector
+        std::vector< std::vector<double> > dataSet;
+        bool isValidDataSet = true;
+        
+        //go through the city list and call the data from server
         for (int i = 0; i < ncities; i++) {
             std::string cityID = interface.getVectorEntry("CITYIDS", i);
     
@@ -88,31 +94,48 @@ int main(int argc, const char * argv[]) {
             std::string data = client.get(apiAddress);
             //std::cout << data << std::endl;
             JData j(data);
-        
+
             std::vector<double> jdata = j.getData();
             
-            //write cached data to file        
-            if(EXT) {
-                for (int j = 0; j < NOBS; j++) {
-                    datafile << jdata[j] << " ";
+            if(jdata.size() < NOBS) {
+                isValidDataSet = false;
+            }
+            dataSet.push_back(jdata);
+        }
+        
+        //write cached data to file
+        if(isValidDataSet) {
+            for (int i = 0; i < ncities; i++) {
+                if(dataSet.size() >= ncities) {
+                    std::vector<double> jdata = dataSet[i];
+                    if(jdata.size() >= NOBS) {
+                        for (int j = 0; j < NOBS; j++) {
+                            datafile << jdata[j] << " ";
+                        }
+                        //screen output
+                        std::string cityID = interface.getVectorEntry("CITYIDS", i);
+                        std::cout << "Weather in " << cityID /*<< ", " << j.getCityName()*/ << ":" << std::endl;
+                        std::cout << "Temperature: " << jdata[0] << " K" << std::endl;
+                        std::cout << "Pressure: " << jdata[1] << " hPa" << std::endl;
+                        std::cout << "Humidity: " << jdata[2] << " \%" << std::endl;
+                        std::cout << "Wind speed: " << jdata[3] << " m/s" << std::endl;
+                        std::cout << "Wind direction: " << jdata[4] << " deg" << std::endl;
+                        std::cout << "Cloudiness: " << jdata[5] << " \%" << std::endl;
+                        std::cout << std::endl;
+                    }
                 }
             }
             
-            //screen output
-            std::cout << "Weather in " << cityID << ", " << j.getCityName() << ":" << std::endl;
-            std::cout << "Temperature: " << jdata[0] << " K" << std::endl;
-            std::cout << "Pressure: " << jdata[1] << " hPa" << std::endl;
-            std::cout << "Humidity: " << jdata[2] << " \%" << std::endl;
-            std::cout << "Wind speed: " << jdata[3] << " m/s" << std::endl;
-            std::cout << "Wind direction: " << jdata[4] << " deg" << std::endl;
-            std::cout << "Cloudiness: " << jdata[5] << " \%" << std::endl;
-            std::cout << std::endl;
+            datafile << std::endl;
+        
+            int wait = (int)60*60*24/CALLSPERDAY;
+            sleep(wait); //wait
+            
+        } else {
+            // if no valid data set (f.e. not all values could be read), try again in 10 seconds
+            std::cout << "Warning: no valid data set, will try again in 10s." << std::endl;
+            sleep(10); //wait
         }
-        
-        datafile << std::endl;
-        
-        int wait = (int)60*60*24/CALLSPERDAY;
-        sleep(wait);
     }
     
     datafile.close();
