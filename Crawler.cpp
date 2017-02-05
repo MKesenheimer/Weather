@@ -16,8 +16,6 @@
 //TODO move to weather.config
 //get weather data x times per day
 #define CALLSPERDAY 48
-//extend data file with current data
-#define EXT true
 //number of observables
 #define NOBS 3
 
@@ -51,15 +49,14 @@ int main(int argc, const char * argv[]) {
     datafile << std::endl;
     //datafile << std::setprecision(1) << std::fixed;
 
+
     while (1) {
-        
         // add time stamp
         time_t now = time(0);
         //std::string dt = ctime(&now);
         tm *ltm = localtime(&now);
         // time stamp in seconds in respect of one day
         int dstamp = 60*60*(ltm->tm_hour) + 60*(ltm->tm_min) + ltm->tm_sec;
-        if(EXT) datafile << dstamp << " ";
         
         // print date and time
         std::cout << "Date: " << ltm->tm_mday << ".";
@@ -105,6 +102,7 @@ int main(int argc, const char * argv[]) {
         
         //write cached data to file
         if(isValidDataSet) {
+            datafile << dstamp << " ";
             for (int i = 0; i < ncities; i++) {
                 if(dataSet.size() >= ncities) {
                     std::vector<double> jdata = dataSet[i];
@@ -133,9 +131,11 @@ int main(int argc, const char * argv[]) {
             
         } else {
             // if no valid data set (f.e. not all values could be read), try again in 10 seconds
-            std::cout << "Warning: no valid data set, will try again in 10s." << std::endl;
-            sleep(10); //wait
+            std::cout << "Warning: no valid data set, will try again in 60s." << std::endl;
+            sleep(60); //wait
         }
+        
+        dataSet.clear();
     }
     
     datafile.close();
