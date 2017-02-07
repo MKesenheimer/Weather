@@ -57,7 +57,6 @@ std::string Interface::getVectorEntry(std::string blockname, int n) {
 
 std::string Interface::getMatrixEntry(std::string blockname, int n, int m) {
     std::string temp = std::string();
-
     readBlock(blockname);
     for(int i=0; i<(int)block.size(); i++) {
         std::vector<std::string> entry = block[i];

@@ -40,6 +40,17 @@ std::string readNextString(std::string str, std::size_t *pos) {
     return temp;
 }
 
+int strToInt(std::string str) {
+    //std::cout << str << std::endl;
+    std::string::size_type sz;
+    if(str!="" or str!=std::string()) {
+        int p = std::stoi(str,&sz);
+        return p;
+    } else {
+        return 0;
+    }
+}
+
 long strToDouble(std::string str) {
     std::string::size_type sz;
     if(str!="" or str!=std::string()) {

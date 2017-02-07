@@ -16,99 +16,37 @@
 
 using namespace OpenNN;
 
-//TODO move to weather.config
-//get weather data x times per day
-#define CALLSPERDAY 24
-//forecast weather in x hours
-#define FORECAST 24
-//the data is checked for consistency, if the recalled data is in an 
-//intervall [currentTime - FORECAST - EPS, currenTime - FORECAST + EPS] all is fine.
-//EPS in seconds
-#define EPS 60*60
-//extend data file with current data
-#define EXT true
-//number of observables
-#define NOBS 3
-
-#define NNEURONS 100
-
 int main(int argc, const char * argv[]) {
-
+    std::cout << "~~ Weather forecasting ANN ~~" << std::endl;
+    
     // load config file
     Interface interface("weather.config");
+    std::cout << "Interface: weather.config" << std::endl;
+    
+    // configuration
     int ncities = interface.getBlockSize("CITYIDS");
+    std::cout << "ncities = " << ncities << std::endl;
+    int callsPerDay = strToInt(interface.getScalarEntry("CALLSPERDAY"));
+    std::cout << "callsPerDay = " << callsPerDay << std::endl;
+    int nObs = strToInt(interface.getScalarEntry("NOBSERVABLES"));
+    std::cout << "nObs = " << nObs << std::endl;
+    int hoursForecast = strToInt(interface.getScalarEntry("FORECAST"));
+    std::cout << "hoursForecast = " << hoursForecast << std::endl;
+    int nNeurons = strToInt(interface.getScalarEntry("NNEURONS"));
+    std::cout << "nNeurons = " << nNeurons << std::endl;
+    int eps = strToInt(interface.getScalarEntry("EPS"));
+    std::cout << "eps = " << eps << std::endl;
+    
+    // load output file
     std::fstream datafile, trainfile;
     std::string filename = std::string("weather_");
-    filename.append(intToStr(CALLSPERDAY));
+    filename.append(intToStr(callsPerDay));
     filename.append(".dat");
     std::cout << "Opening " << filename << std::endl;
-    datafile.open(filename, std::fstream::in | std::fstream::out | std::fstream::app);
-    datafile << std::setprecision(1) << std::fixed; //<< std::setw(5); //<< std::setprecision(3);
+    datafile.open(filename, std::fstream::in);
 
-    while (1) {
-
-        //open additional file with training data
-        trainfile.open("train.dat", std::fstream::in | std::fstream::out | std::fstream::trunc);
-        if(EXT) datafile << std::endl; //prepare new line
-        
-        // add time stamp
-        time_t now = time(0);
-        //std::string dt = ctime(&now);
-        tm *ltm = localtime(&now);
-        // time stamp in seconds in respect of one day
-        int dstamp = 60*60*(ltm->tm_hour) + 60*(ltm->tm_min) + ltm->tm_sec;
-        if(EXT) datafile << dstamp << " ";
-        
-        // print date and time
-        std::cout << "Date: " << ltm->tm_mday << ".";
-        std::cout << 1 + ltm->tm_mon << ".";
-        std::cout << 1900 + ltm->tm_year << std::endl;
-        std::cout << "Time: "<< ltm->tm_hour << ":";
-        std::cout << 1 + ltm->tm_min << ":";
-        std::cout << 1 + ltm->tm_sec << std::endl << std::endl;
-    
-        std::cout << "Number of requested cities: " << ncities << std::endl << std::endl;
-        
-        for (int i = 0; i < ncities; i++) {
-            std::string cityID = interface.getVectorEntry("CITYIDS", i);
-    
-            // webAddress and appID
-            std::string webAddress = "http://api.openweathermap.org/data/2.5/weather";
-            std::string appID = "4f981d5e51ed9a7f23de89ef80564254";
-        
-            // build web API string 
-            std::string apiAddress = webAddress.append("?id=");
-            apiAddress = apiAddress.append(cityID);
-            apiAddress = apiAddress.append("&appid="); // &units=metric
-            apiAddress = apiAddress.append(appID);
-            //std::cout << apiAddress << std::endl;
-    
-            CURLplusplus client;
-            std::string data = client.get(apiAddress);
-            //std::cout << data << std::endl;
-            JData j(data);
-        
-            std::vector<double> jdata = j.getData();
-            
-            std::cout << "Weather in " << cityID << ", " << j.getCityName() << ":" << std::endl;
-            std::cout << "Temperature: " << jdata[0] << " K" << std::endl;
-            std::cout << "Pressure: " << jdata[1] << " hPa" << std::endl;
-            std::cout << "Humidity: " << jdata[2] << " \%" << std::endl;
-            std::cout << "Wind speed: " << jdata[3] << " m/s" << std::endl;
-            std::cout << "Wind direction: " << jdata[4] << " deg" << std::endl;
-            std::cout << "Cloudiness: " << jdata[5] << " \%" << std::endl;
-            std::cout << std::endl;
-            
-            //write cached data to file        
-            if(EXT) {
-                for (int j = 0; j < NOBS; j++) {
-                    datafile << jdata[j] << " ";
-                }
-            }
-        }
-    
-        sleep(5*60); //wait 5 minutes
-    }
+    //open additional file with training data
+    trainfile.open("train.dat", std::fstream::in | std::fstream::out | std::fstream::trunc);
     
     //read line which was written 24h before and append to learning data 
     // -> this is the output we want to train the ANN for
@@ -117,8 +55,11 @@ int main(int argc, const char * argv[]) {
     datafile.seekg(0, std::fstream::beg);
     while(!datafile.eof()) {
         std::getline(datafile, line);
-        //std::cout << line << std::endl;
-        linev.push_back(line);
+        std::string firstchr = line.substr(0,1);
+        if(firstchr.compare("#") != 0) {
+            std::cout << line << std::endl;
+            linev.push_back(line);
+        }
     }
     // reposition the cursor to eof
     datafile.seekg(std::fstream::end);
@@ -127,9 +68,10 @@ int main(int argc, const char * argv[]) {
     std::vector<std::string> newdatav;
     
     //write training data if enough data is available
-    if(linev.size() >= (int)(2*FORECAST*CALLSPERDAY/24)) {
+    if(linev.size() >= (int)(2*hoursForecast*callsPerDay/24)) {
+        std::cout << "-> build training data." << std::endl;
         //cycle line by line
-        for(int j = linev.size() - 1; j >= (int)(FORECAST*CALLSPERDAY/24); j--) {
+        for(int j = linev.size() - 1; j >= (int)(hoursForecast*callsPerDay/24); j--) {
             //TODO: if '\n' was read, continue with the line before (could be the eof)
             //TODO: check bounds
             std::vector<std::string> wordv = strToVec(linev[j]);
@@ -138,30 +80,31 @@ int main(int argc, const char * argv[]) {
             std::string buildstr = linev[j];
             //std::cout << buildstr << std::endl;
         
-            //go back (FORECAST*CALLSPERDAY/24) lines and read the line
+            //go back (hoursForecast*callsPerDay/24) lines and read the line
             //TODO: check bounds
-            wordv = strToVec(linev[j - (int)(FORECAST*CALLSPERDAY/24)]);
+            wordv = strToVec(linev[j - (int)(hoursForecast*callsPerDay/24)]);
             //check for data consistency
-            if(strToDouble(wordv[0]) >= (ctime - EPS) && 
-                strToDouble(wordv[0]) <= (ctime + EPS)) {
-                //the observables start at position 1 and end at NOBS + 1
-                for (int k = 1; k < NOBS + 1; k++) {
+            if(strToDouble(wordv[0]) >= (ctime - eps) && 
+                strToDouble(wordv[0]) <= (ctime + eps)) {
+                //the observables start at position 1 and end at nObs + 1
+                for (int k = 1; k < nObs + 1; k++) {
                     buildstr.append(wordv[k]);
                     buildstr.append(" ");
                 }
             } else {
                 std::cout << "error in datafile. stop." << std::endl;
-                std::cout << wordv[0] << " not in [" << ctime - EPS << ", " << ctime + EPS << std::endl;
+                std::cout << wordv[0] << " not in [" << ctime - eps << ", " << ctime + eps << std::endl;
                 return 1;
-                //TODO: instead of an error, check the CALLSPERDAY/2 lines before and after the current line and pick the one which fits best
-                //for(int i = j - (int)(FORECAST*CALLSPERDAY/24) + (int)CALLSPERDAY/2; i >= 0; i--) {
+                //TODO: instead of an error, check the callsPerDay/2 lines before and after the current line and pick the one which fits best
+                //for(int i = j - (int)(hoursForecast*callsPerDay/24) + (int)callsPerDay/2; i >= 0; i--) {
             }
             //std::cout << buildstr << std::endl;
             newdatav.push_back(buildstr);
         }
     
         //normalize data and write out
-        std::vector<double> norm = {323.0, 1100.0, 100.0, 20.0, 360.0, 100.0};
+        //std::vector<double> norm = {323.0, 1100.0, 100.0, 20.0, 360.0, 100.0}; // normalize to [0,1]
+        std::vector<double> norm = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0}; // don't normalize data
         for (int i = 0; i < newdatav.size(); i++) {
             //remove NaNs
             std::vector<std::string> wordv = strToVec(newdatav[i]);
@@ -173,9 +116,10 @@ int main(int argc, const char * argv[]) {
                 } else {
                     double normeddata;
                     if (j == 0) {
-                        normeddata = (double)strToDouble(wordv[j])/86400.0;
+                        //normeddata = (double)strToDouble(wordv[j])/86400.0;
+                        normeddata = (double)strToDouble(wordv[j]);
                     } else {
-                        normeddata = strToDouble(wordv[j])/norm[(j-1)%NOBS];
+                        normeddata = strToDouble(wordv[j])/norm[(j-1)%nObs];
                     }
                     newdatav[i].append(doubleToStr(normeddata));
                 }
@@ -187,32 +131,34 @@ int main(int argc, const char * argv[]) {
         trainfile.close();
         datafile.close();
         
+        /*
         // initialize ANN
         // Data set
         DataSet data_set;
         data_set.set_data_file_name("train.dat");
+        data_set.set_separator("Space");
         data_set.load_data();
         Variables* variables_pointer = data_set.get_variables_pointer();
-        variables_pointer->set(ncities*NOBS + 1, NOBS);
+        variables_pointer->set(ncities*nObs + 1, nObs);
     
         std::vector<std::string> ids = {"TEM","PRE","HUM","SPE","DIR","CLO"};
         variables_pointer->set_name(0, "TIME");
         for (int i = 0; i < ncities; i++) {
-            for (int j = 0; j < NOBS; j++) {
-                std::cout << i*NOBS+j+1 <<", ids = "<<ids[j] + intToStr(i)<<std::endl;
-                variables_pointer->set_name(i*NOBS+j+1, ids[j] + intToStr(i));
+            for (int j = 0; j < nObs; j++) {
+                std::cout << i*nObs+j+1 << ", ids = " << ids[j] + intToStr(i) << std::endl;
+                variables_pointer->set_name(i*nObs+j+1, ids[j] + intToStr(i));
             }
         }
-        for (int i = 0; i < NOBS; i++) {
-            std::cout << ncities*NOBS+i+1<<", ids ="<<ids[i]+ "OUT"<<std::endl;
-            variables_pointer->set_name(ncities*NOBS+i+1, ids[i] + "OUT");
+        for (int i = 0; i < nObs; i++) {
+            std::cout << ncities*nObs+i+1 << ", ids = " << ids[i]+ "OUT" << std::endl;
+            variables_pointer->set_name(ncities*nObs+i+1, ids[i] + "OUT");
         }
     
         const Matrix<std::string> inputs_information = variables_pointer->arrange_inputs_information();
         const Matrix<std::string> targets_information = variables_pointer->arrange_targets_information();
     
         // Neural network
-        NeuralNetwork neural_network(ncities*NOBS + 1, NNEURONS, NOBS);
+        NeuralNetwork neural_network(ncities*nObs + 1, nNeurons, nObs);
         Inputs* inputs_pointer = neural_network.get_inputs_pointer();
         inputs_pointer->set_information(inputs_information);
         Outputs* outputs_pointer = neural_network.get_outputs_pointer();
@@ -232,9 +178,9 @@ int main(int argc, const char * argv[]) {
         training_strategy.save("training_strategy.xml");
     
         // Print results to screen
-        Vector<double> inputs(ncities*NOBS + 1, 0.0);
-        Vector<double> outputs(NOBS, 0.0);
-    
+        Vector<double> inputs(ncities*nObs + 1, 0.0);
+        Vector<double> outputs(nObs, 0.0);
+        */
         /*
         std::cout << "X Y AND" << std::endl;
     
@@ -258,6 +204,10 @@ int main(int argc, const char * argv[]) {
         outputs = neural_network.calculate_outputs(inputs);
         std::cout << inputs << " " << outputs << std::endl;
         */
+    } else {
+        std::cout << "data not enough, collect more!" << std::endl;
+        std::cout << "number of lines = " << linev.size() << std::endl;
+        std::cout << "required number = " << 2*hoursForecast*callsPerDay/24 << std::endl;
     }
     return 0;
 }

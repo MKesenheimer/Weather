@@ -13,24 +13,23 @@
 #include "Curl.h"
 #include "Interface.h"
 
-//TODO move to weather.config
-//get weather data x times per day
-#define CALLSPERDAY 48
-//number of observables
-#define NOBS 3
-
 int main(int argc, const char * argv[]) {
 
     // load config file
     Interface interface("weather.config");
+    
+    // configuration
     int ncities = interface.getBlockSize("CITYIDS");
-    std::fstream datafile, trainfile;
+    int callsPerDay = strToInt(interface.getScalarEntry("CALLSPERDAY"));
+    int nObs = strToInt(interface.getScalarEntry("NOBSERVABLES"));
+    
+    // load output file
+    std::fstream datafile;
     std::string filename = std::string("weather_");
-    filename.append(intToStr(CALLSPERDAY));
+    filename.append(intToStr(callsPerDay));
     filename.append(".dat");
     std::cout << "Opening " << filename << std::endl;
     datafile.open(filename, std::fstream::in | std::fstream::out | std::fstream::app);
-
     
     datafile << "# City IDs: ";
     for (int i = 0; i < ncities; i++) {
@@ -42,7 +41,7 @@ int main(int argc, const char * argv[]) {
     std::vector<std::string> ids = {"Tem","Pre","Hum","Spe","Dir","Clo"};
     datafile << "# Observables: Time, ";
     for (int i = 0; i < ncities; i++) {
-        for (int j = 0; j < NOBS; j++) {
+        for (int j = 0; j < nObs; j++) {
             datafile << ids[j] << ", ";
         }
     }
@@ -94,7 +93,7 @@ int main(int argc, const char * argv[]) {
 
             std::vector<double> jdata = j.getData();
             
-            if(jdata.size() < NOBS) {
+            if(jdata.size() < nObs) {
                 isValidDataSet = false;
             }
             dataSet.push_back(jdata);
@@ -106,8 +105,8 @@ int main(int argc, const char * argv[]) {
             for (int i = 0; i < ncities; i++) {
                 if(dataSet.size() >= ncities) {
                     std::vector<double> jdata = dataSet[i];
-                    if(jdata.size() >= NOBS) {
-                        for (int j = 0; j < NOBS; j++) {
+                    if(jdata.size() >= nObs) {
+                        for (int j = 0; j < nObs; j++) {
                             datafile << jdata[j] << " ";
                         }
                         //screen output
@@ -126,12 +125,13 @@ int main(int argc, const char * argv[]) {
             
             datafile << std::endl;
         
-            int wait = (int)60*60*24/CALLSPERDAY;
+            int wait = (int)60*60*24/callsPerDay;
             sleep(wait); //wait
             
         } else {
             // if no valid data set (f.e. not all values could be read), try again in 10 seconds
             std::cout << "Warning: no valid data set, will try again in 60s." << std::endl;
+            std::cout << std::endl;
             sleep(60); //wait
         }
         
