@@ -28,7 +28,7 @@ int main(int argc, const char * argv[]) {
     std::cout << "ncities = " << ncities << std::endl;
     int callsPerDay = strToInt(interface.getScalarEntry("CALLSPERDAY"));
     std::cout << "callsPerDay = " << callsPerDay << std::endl;
-    int nObs = strToInt(interface.getScalarEntry("NOBSERVABLES"));
+    int nObs = interface.getBlockSize("OBSERVABLES");
     std::cout << "nObs = " << nObs << std::endl;
     int hoursForecast = strToInt(interface.getScalarEntry("FORECAST"));
     std::cout << "hoursForecast = " << hoursForecast << std::endl;

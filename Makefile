@@ -1,11 +1,17 @@
 ########################################################################
 #                          -*- Makefile -*-                            #
 ########################################################################
-
-COMPILER = g++ -std=c++11
+# General conventions for Makefiles
+SHELL = /bin/sh
+.SUFFIXES:
+.SUFFIXES: .c .f .F .cc .cpp .h .hh .inc .o .a
+.DEFAULT_GOAL := Weather
 
 ########################################################################
 ## Flags
+
+COMPILER = g++ -std=c++11
+
 FLAGS   = -g
 LDFLAGS =
 PREPRO  =
